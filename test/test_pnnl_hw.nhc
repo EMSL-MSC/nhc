@@ -1,0 +1,38 @@
+# Tests for lbnl_hw.nhc
+
+plan $((4+8+3)) "pnnl_hw.nhc" && {
+    is "`type -t nhc_hw_gather_data 2>&1`" 'function' 'nhc_hw_gather_data() loaded properly'
+    is "`type -t pnnl_hw_gather_eth_data 2>&1`" 'function' 'pnnl_hw_gather_eth_data() loaded properly'
+    is "`type -t check_hw_eth_status 2>&1`" 'function' 'check_hw_eth_status loaded properly'
+    is "`type -t check_hw_kernel_module 2>&1`" 'function' 'check_hw_eth_status loaded properly'
+
+    # Ethernet Links
+    PNNL_HW_ETH_LINK=( up down up )
+    PNNL_HW_ETH_RATE=( 1000 0 10000 )
+    PNNL_HW_ETH_DEV=( enp0s0f0 enp0s0f1 ib0 )
+
+    check_hw_eth_status enp0s0f0 up
+    is $? 0 "Valid test hardware:  ethernet interface enp0s0f0 is up"
+    check_hw_eth_status enp0s0f0 down
+    is $? 1 "Invalid test hardware:  ethernet interface enp0s0f0 is down"
+    check_hw_eth_status enp0s0f1 down
+    is $? 0 "Valid test hardware:  ethernet interface enp0s0f1 is down"
+    check_hw_eth_status enp0s0f1 up
+    is $? 1 "Invalid test hardware:  ethernet interface enp0s0f1 is up"
+    check_hw_eth_status ib0 up 10000
+    is $? 0 "Valid test hardware:  ethernet interface ib0 is up at 10000 Mb/s"
+    check_hw_eth_status ib0 up 100
+    is $? 1 "Invalid test hardware:  ethernet interface ib0 is up at 100 Mb/s"
+    check_hw_eth_status eth0 up
+    is $? 1 "Invalid test hardware:  ethernet interface eth0 is up"
+    check_hw_eth_status eth0 up 100
+    is $? 1 "Invalid test hardware:  ethernet interface eth0 is up at 100 Mb/s"
+
+    HW_MODULES=( nfs xfs )
+    check_hw_kernel_module nfs
+    is $? 0 "loaded nfs module found"
+    check_hw_kernel_module xfs
+    is $? 0 "loaded xfs module found"
+    check_hw_kernel_module ext3
+    is $? 1 "ext3 kernel module not loaded"
+} ; unplan

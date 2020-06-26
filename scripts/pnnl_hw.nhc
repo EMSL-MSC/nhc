@@ -1,0 +1,82 @@
+# PNNL NHC - Hardware Checks
+#
+# Ken Schmidt <kenneth.schmidt@pnnl.gov>
+# 16 June 2020
+#
+
+PNNL_HW_ETH_LINK=( )
+PNNL_HW_ETH_RATE=( )
+PNNL_HW_ETH_DEV=()
+
+# Read hardware information from /proc and /sys files.
+function pnnl_hw_gather_eth_data() {
+    local LINE CORES SIBLINGS MHZ PROCESSOR PHYS_ID PORT INDEX DEV
+    local -a FIELD PHYS_IDS
+
+    # Gather IP info
+    echo /sys/class/net/*
+    for PORT in /sys/class/net/*; do
+        test -e "$PORT" || break
+        INDEX=${#PNNL_HW_ETH_LINK[*]}
+        read LINE < $PORT/carrier 2> /dev/null
+        if [[ $LINE == 1 ]]; then
+            PNNL_HW_ETH_LINK[$INDEX]=up
+        else
+            PNNL_HW_ETH_LINK[$INDEX]=down
+        fi
+        read LINE < $PORT/speed 2> /dev/null
+        PNNL_HW_ETH_RATE[$INDEX]=$LINE
+        IFS=' /'
+        arr=( $PORT )
+        PNNL_HW_ETH_DEV[$INDEX]="${arr[4]}"
+        IFS=$' \t\n'
+        dbg "Found IP Port ${PNNL_HW_ETH_DEV[$INDEX]} state (${PNNL_HW_ETH_LINK[$INDEX]}) (${PNNL_HW_ETH_RATE[$INDEX]} mb/sec)"
+    done
+    export PNNL_HW_ETH_DEV PNNL_HW_ETH_LINK PNNL_HW_ETH_RATE
+}
+
+# Check if ETH state, phys_state, and rate ($1) all match.
+function check_hw_eth_status() {
+    local RATE="$3"
+    local LINK="$2"
+    local DEV="$1"
+    local i
+
+    if [[ ${#PNNL_HW_ETH_LINK[*]} -eq 0 ]]; then
+	dbg "gathering ethernet data"
+        pnnl_hw_gather_eth_data
+    fi
+
+    for ((i=0; i < ${#PNNL_HW_ETH_DEV[*]}; i++)); do
+        if [[ "${PNNL_HW_ETH_DEV[$i]}" == "$DEV" && "${PNNL_HW_ETH_LINK[$i]}" == "$LINK" ]]; then
+            if [[  -z "$RATE" || "${PNNL_HW_ETH_RATE[$i]}" == "$RATE" ]]; then
+                return 0
+            fi
+        fi
+    done
+
+    if [[ -n "$RATE" ]]; then
+        RATE=" ($RATE Gb/sec)"
+    fi
+
+    die 1 "$FUNCNAME:  No ETH port $DEV is $LINK$RATE."
+    return 1
+}
+
+function check_hw_kernel_module() {
+    local MOD=$1
+    local i
+
+    if [[ ${#HW_MODULES[*]} -eq 0 ]]; then
+        nhc_hw_gather_data
+    fi
+
+    for ((i=0; i < ${#HW_MODULES[*]}; i++)); do
+        if [[ ${HW_MODULES[$i]} == $MOD ]]; then
+            return 0
+        fi
+    done
+
+    die 1 "$FUNCNAME:  $MOD kernel module not loaded."
+    return 1
+}
