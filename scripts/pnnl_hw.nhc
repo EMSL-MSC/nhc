@@ -11,11 +11,13 @@ PNNL_HW_ETH_DEV=()
 # Read hardware information from /proc and /sys files.
 function pnnl_hw_gather_eth_data() {
     local LINE CORES SIBLINGS MHZ PROCESSOR PHYS_ID PORT INDEX DEV
-    local -a FIELD PHYS_IDS
+    local -a FIELD PHYS_IDS IBPORTS
 
     # Gather IP info
-    echo /sys/class/net/*
-    for PORT in /sys/class/net/*; do
+    set +o noglob
+    IBPORTS=( /sys/class/net/* )
+    set -o noglob
+    for PORT in "${IBPORTS[@]}"; do
         test -e "$PORT" || break
         INDEX=${#PNNL_HW_ETH_LINK[*]}
         read LINE < $PORT/carrier 2> /dev/null
