@@ -1,0 +1,127 @@
+# PNNL NHC - Disk Speed Checks
+#
+# Evan Felix <evan.felix@pnnl.gov>
+# 29 June 2020
+#
+
+# Run a give DD command and return the speed as bytes/s
+# sample output of dd command:
+# 4096+0 records in
+# 4096+0 records out
+# 4294967296 bytes (4.3 GB) copied, 1.72368 s, 2.5 GB/s
+# last prameter is the Variable to put the result in:
+# get_dd_speed dd if=/dev/zero of=filename bs=1M count=4k oflag=direct SPEED
+function get_dd_speed() {
+    local SPDS MULT
+    local -a ATMP
+    local DD=( $@ )
+    local ANAME=${DD[-1]}
+    local SAVEIFS="$IFS"
+    array_pop DD 
+
+    dbg get_dd_speed command: ${DD[*]}
+    IFS=$'\n'
+    local LINES=( $( ${DD[*]} 2>&1 ) )
+    LINE=${LINES[2]}
+    IFS="$SAVEIFS"
+    dbg get_dd_speed output: $LINE
+    
+    read -a ATMP <<< $LINE
+    
+    IFS=.
+    SPDS=( ${ATMP[-2]} )
+    MULT=${ATMP[-1]:0:1}
+    IFS="$SAVEIFS"
+    nhc_common_parse_count ${SPDS[0]}$MULT MAJOR 1024
+    nhc_common_parse_count ${SPDS[1]}00$MULT MINOR 1024
+    
+    MINOR=$(($MINOR/1024))
+    eval "$ANAME"=$(($MAJOR+$MINOR))
+}
+
+# check the speed of a write to a specific file
+# check_disk_write_speed <filename> <rate> [[<gigs>] <keepflag>]
+# rate can be in bytes or with as suffix such as 5G
+# gigs is an integer
+# if keepflag is present it will not remove the file at the end
+function check_disk_write_speed() {
+    local FILE="$1"
+    local RATE="$2"
+    local GIGS="$3"
+    GIGS=${GIGS:=4}
+    local KEEP="$4"
+    nhc_common_parse_count $RATE RATE
+    
+    get_dd_speed dd if=/dev/zero of=$FILE bs=1M count=${GIGS}k oflag=direct SPEED
+
+    RET=0
+    if [[ $SPEED -lt $RATE ]]; then
+        die 1 "$FUNCNAME: Write speed Low for $FILE: $SPEED < $RATE "
+        RET=1
+    fi
+    
+    if [[ -z "$KEEP" ]]; then
+        rm $FILE
+    fi
+
+    return $RET
+}
+
+
+# check the speed of a read from a specific file, file must exist
+# check_disk_write_speed <filename> <rate> [<gigs>]
+# rate can be in bytes or with as suffix such as 5G
+# gigs is an integer
+function check_disk_read_speed() {
+    local FILE="$1"
+    local RATE="$2"
+    local GIGS="$3"
+    GIGS=${GIGS:=4}
+    nhc_common_parse_count $RATE RATE
+    
+    get_dd_speed dd of=/dev/null if=$FILE bs=1M count=${GIGS}k iflag=direct SPEED
+
+    RET=0
+    if [[ $SPEED -lt $RATE ]]; then
+        die 1 "$FUNCNAME: Read speed Low for $FILE: $SPEED < $RATE "
+        RET=1
+    fi
+    
+    return $RET
+}
+
+# check the speed of a write then read to/from a specific file
+# check_disk_write_speed <filename> <write rate> <read rate> [[<gigs>] <keepflag>]
+# rate can be in bytes or with as suffix such as 5G
+# gigs is an integer
+# if keepflag is present it will not remove the file at the end
+function check_disk_speed() {
+    local FILE="$1"
+    local W_RATE="$2"
+    local R_RATE="$3"
+    local GIGS="$4"
+    GIGS=${GIGS:=4}
+    local KEEP="$4"
+
+    nhc_common_parse_count $W_RATE W_RATE
+    nhc_common_parse_count $R_RATE R_RATE
+
+    get_dd_speed dd if=/dev/zero of=$FILE bs=1M count=${GIGS}k oflag=direct W_SPEED
+    get_dd_speed dd of=/dev/null if=$FILE bs=1M count=${GIGS}k iflag=direct R_SPEED
+    
+    RET=0
+    if [[ $W_SPEED -lt $W_RATE ]]; then
+        die 1 "$FUNCNAME: Write speed Low for $FILE: $W_SPEED < $W_RATE "
+        RET=1
+    fi
+    if [[ $R_SPEED -lt $R_RATE ]]; then
+        die 1 "$FUNCNAME: Read speed Low for $FILE: $R_SPEED < $R_RATE "
+        RET=1
+    fi
+
+    if [[ -z "$KEEP" ]]; then
+        rm $FILE
+    fi
+    
+    return 0
+}

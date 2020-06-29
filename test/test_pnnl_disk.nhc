@@ -1,0 +1,15 @@
+# Tests for lbnl_hw.nhc
+
+plan $((4+2)) "pnnl_hw.nhc" && {
+    is "`type -t get_dd_speed 2>&1`" 'function' 'get_dd_speed() loaded properly'
+    is "`type -t check_disk_write_speed 2>&1`" 'function' 'check_disk_write_speed() loaded properly'
+    is "`type -t check_disk_read_speed 2>&1`" 'function' 'check_disk_read_speed loaded properly'
+    is "`type -t check_disk_speed 2>&1`" 'function' 'check_disk_speed loaded properly'
+
+    check_disk_write_speed /big_scratch/_specialtestfile_nhc 1G
+    is $? 0 "Valid test disk:  disk speed is appropriate"
+    check_disk_write_speed /big_scratch/_specialtestfile_nhc 1P
+    is $? 1 "Invalid test disk:  disk is too slow"
+
+
+} ; unplan
