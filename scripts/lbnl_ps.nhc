@@ -195,7 +195,7 @@ function nhc_ps_check_res() {
             THIS_PROG="${ARGS[0]}"
         fi
         dbg "Checking $THIS_PID for system user:  ${PS_UID[$THIS_PID]} <= $MAX_SYS_UID?"
-        if [[ $ALLUSERS -eq 0 && ${PS_UID[$THIS_PID]} -le $MAX_SYS_UID ]]; then
+        if [[ -z $OWNER && $ALLUSERS -eq 0 && ${PS_UID[$THIS_PID]} -le $MAX_SYS_UID ]]; then
             # Unless we were asked to look at all users, ignore system users' procs
             continue
         fi
