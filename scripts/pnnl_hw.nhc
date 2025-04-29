@@ -82,3 +82,17 @@ function check_hw_kernel_module() {
     die 1 "$FUNCNAME:  $MOD kernel module not loaded."
     return 1
 }
+
+function check_rasdeamon() {
+    local output ce_count ue_count
+    output=$(ras-mc-ctl --error-count)
+
+    ce_count=$(echo "$output" | awk 'NR>1 {ce+=$2} END {print ce+0}')
+    ue_count=$(echo "$output" | awk 'NR>1 {ue+=$3} END {print ue+0}')
+
+    if [[ $ce_count -gt 0 || $ue_count -gt 100 ]]; then
+        die 1 "$FUNCNAME:  MEMORY ERRORS DETECTED."
+    fi
+
+    return 0
+}
