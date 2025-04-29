@@ -83,15 +83,17 @@ function check_hw_kernel_module() {
     return 1
 }
 
-function check_rasdeamon() {
+function check_rasdaemon() {
+    local CE_THRESHOLD=$1
+    local UE_THRESHOLD=$2
     local output ce_count ue_count
     output=$(ras-mc-ctl --error-count)
 
     ce_count=$(echo "$output" | awk 'NR>1 {ce+=$2} END {print ce+0}')
     ue_count=$(echo "$output" | awk 'NR>1 {ue+=$3} END {print ue+0}')
 
-    if [[ $ce_count -gt 0 || $ue_count -gt 100 ]]; then
-        die 1 "$FUNCNAME:  MEMORY ERRORS DETECTED."
+    if [[ $ce_count -gt $CE_THRESHOLD || $ue_count -gt $UE_THRESHOLD ]]; then
+        die 1 "$FUNCNAME:  MEMORY ERRORS DETECTED.  CE_ERRORS: $ce_count  | UE_ERRORS: $ue_count"
     fi
 
     return 0
