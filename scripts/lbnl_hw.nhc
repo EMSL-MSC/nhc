@@ -412,7 +412,6 @@ function check_hw_eth() {
     return 1
 }
 
-# Check for MCE errors
 function check_hw_mcelog() {
     local HW_MCELOG_ERRS MSG=""
     local -a ERROR_LINES ERROR_LINE

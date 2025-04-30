@@ -223,7 +223,7 @@ plan $((11+7+13+13+13+4+4+4+10+3+6+6)) "lbnl_hw.nhc" && {
     check_hw_eth virbr0
     is $? 0 "Ethernet interface virbr0 is present."
 
-    # Fake MCE log data
+    #Fake MCE log data
     MCELOG="echo -e"
     MCELOG_MAX_CORRECTED_RATE="9"
     MCELOG_MAX_UNCORRECTED_RATE="0"
