@@ -98,3 +98,32 @@ function check_rasdaemon() {
 
     return 0
 }
+
+function check_smartctl_health() {
+    local DEV="/dev/nvme0n1"
+    local output status
+
+    output=$(smartctl -H "$DEV" 2>&1)
+    status=$(echo "$output" | awk '/SMART overall-health self-assessment test result/ {print $NF}')
+
+    if [[ "$status" != "PASSED" ]]; then
+        die 1 "$FUNCNAME:  SMART health check FAILED for $DEV. Status: $status"
+    fi
+
+    return 0
+}
+
+function check_cpu_speed() {
+    local MIN_MHZ=2000  
+    local cpu_mhz
+
+    cpu_mhz=$(lscpu -e=CPU,ONLINE,MHZ | awk 'NR>1 {print int($3)}')
+    # Check each CPU speed
+    while read -r mhz; do
+        if [[ "$mhz" -lt "$MIN_MHZ" ]]; then
+            die 1 "$FUNCNAME: CPU speed too low ($mhz MHz < $MIN_MHZ MHz)"
+        fi
+    done <<< "$cpu_mhz"
+
+    return 0
+}
