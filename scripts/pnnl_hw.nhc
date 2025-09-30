@@ -114,7 +114,7 @@ function check_smartctl_health() {
 }
 
 function check_cpu_speed() {
-    local DRIVER_EXPECTED="intel_cpufreq"
+    local DRIVER_EXPECTED="$1"
     local driver_file driver_found=0
 
     for driver_file in /sys/devices/system/cpu/cpu*/cpufreq/scaling_driver; do
