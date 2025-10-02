@@ -98,3 +98,44 @@ function check_rasdaemon() {
 
     return 0
 }
+
+function check_smartctl_health() {
+    local DEV="/dev/nvme0n1"
+    local output status
+
+    output=$(smartctl -H "$DEV" 2>&1)
+    status=$(echo "$output" | awk '/SMART overall-health self-assessment test result/ {print $NF}')
+
+    if [[ "$status" != "PASSED" ]]; then
+        die 1 "$FUNCNAME:  SMART health check FAILED for $DEV. Status: $status"
+    fi
+
+    return 0
+}
+
+function check_cpu_speed() {
+    local DRIVER_EXPECTED="$1"
+    local driver_file driver_found=0
+    local files
+
+    shopt -s nullglob
+    files=(/sys/devices/system/cpu/cpu*/cpufreq/scaling_driver)
+    shopt -u nullglob
+
+    if [[ ${#files[@]} -eq 0 ]]; then
+        die 1 "$FUNCNAME: No scaling_driver files found under /sys/devices/system/cpu/"
+    fi
+
+    for driver_file in "${files[@]}"; do
+        if [[ -f "$driver_file" ]]; then
+            driver=$(cat "$driver_file")
+            if [[ "$driver" != "$DRIVER_EXPECTED" ]]; then
+                die 1 "$FUNCNAME: CPU scaling driver is '$driver' (expected '$DRIVER_EXPECTED') in $driver_file"
+            else
+                driver_found=1
+            fi
+        fi
+    done
+
+    return 0
+}
