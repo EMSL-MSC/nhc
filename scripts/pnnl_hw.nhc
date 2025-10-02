@@ -116,8 +116,17 @@ function check_smartctl_health() {
 function check_cpu_speed() {
     local DRIVER_EXPECTED="$1"
     local driver_file driver_found=0
+    local files
 
-    for driver_file in /sys/devices/system/cpu/cpu*/cpufreq/scaling_driver; do
+    shopt -s nullglob
+    files=(/sys/devices/system/cpu/cpu*/cpufreq/scaling_driver)
+    shopt -u nullglob
+
+    if [[ ${#files[@]} -eq 0 ]]; then
+        die 1 "$FUNCNAME: No scaling_driver files found under /sys/devices/system/cpu/"
+    fi
+
+    for driver_file in "${files[@]}"; do
         if [[ -f "$driver_file" ]]; then
             driver=$(cat "$driver_file")
             if [[ "$driver" != "$DRIVER_EXPECTED" ]]; then
@@ -127,10 +136,6 @@ function check_cpu_speed() {
             fi
         fi
     done
-
-    if [[ $driver_found -eq 0 ]]; then
-        die 1 "$FUNCNAME: No scaling_driver files found under /sys/devices/system/cpu/"
-    fi
 
     return 0
 }
